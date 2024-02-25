@@ -9,13 +9,13 @@ import (
 	"time"
 )
 
-type RepositoryI interface {
-	CreateAccount(account *account) error
-	GetAccount(id accountID) (*account, error)
-	DepositAccount(account *account, amount int) error
-	WithdrawAccount(id accountID) (*account, error)
-	TransferAccount(id accountID) (*account, error)
-}
+// type RepositoryI interface {
+// 	CreateAccount(account *account) error
+// 	GetAccount(id accountID) (*account, error)
+// 	DepositAccount(account *account, amount int) error
+// 	WithdrawAccount(id accountID) (*account, error)
+// 	TransferAccount(id accountID) (*account, error)
+// }
 
 type accountID int64
 
