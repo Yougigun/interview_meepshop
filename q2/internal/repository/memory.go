@@ -45,6 +45,7 @@ type Repository struct {
 }
 
 func NewRepository() *Repository {
+	idCounter = 0
 	return &Repository{
 		Accounts: make(map[accountID]*account),
 		Transactions: transactions{
