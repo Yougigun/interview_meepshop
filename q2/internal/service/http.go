@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/Yougigun/meepshop_q2/internal/handler"
@@ -13,9 +14,9 @@ type HttpService struct {
 	Engine *gin.Engine
 }
 
-func Build(log *zap.Logger, repo *repository.Repository) *http.Server {
+func Build(ctx context.Context, log *zap.Logger, repo *repository.Repository) *http.Server {
 	r := gin.Default()
-	h := handler.NewAccountHandler(log, repo)
+	h := handler.NewAccountHandler(ctx, log, repo)
 
 	r.POST("/accounts", h.CreateAccount)
 

@@ -27,7 +27,7 @@ type account struct {
 	rw      sync.RWMutex
 }
 
-type transactionLog struct {
+type TransactionLog struct {
 	From   accountID
 	To     accountID
 	Amount int64
@@ -35,7 +35,7 @@ type transactionLog struct {
 }
 
 type transactions struct {
-	transactions []transactionLog
+	transactions []TransactionLog
 	rw           sync.RWMutex
 }
 
@@ -48,7 +48,7 @@ func NewRepository() *Repository {
 	return &Repository{
 		Accounts: make(map[accountID]*account),
 		Transactions: transactions{
-			transactions: make([]transactionLog, 0),
+			transactions: make([]TransactionLog, 0),
 		},
 	}
 }
@@ -63,16 +63,16 @@ func (r *Repository) CreateAccount(ctx context.Context) (accountID, error) {
 	return accountID(id), nil
 }
 
-func (r *Repository) GetAccount(ctx context.Context, id accountID) (*account, error) {
+func (r *Repository) GetAccount(ctx context.Context, id int64) (*account, error) {
 	// check if account exists
-	if r.Accounts[id] == nil {
+	if r.Accounts[accountID(id)] == nil {
 		return nil, errors.New("account not found")
 	}
-	r.Accounts[id].rw.RLock()
-	defer r.Accounts[id].rw.RUnlock()
+	r.Accounts[accountID(id)].rw.RLock()
+	defer r.Accounts[accountID(id)].rw.RUnlock()
 	readAccount := &account{
-		ID:      r.Accounts[id].ID,
-		Balance: r.Accounts[id].Balance,
+		ID:      r.Accounts[accountID(id)].ID,
+		Balance: r.Accounts[accountID(id)].Balance,
 	}
 	return readAccount, nil
 }
@@ -137,4 +137,32 @@ func (r *Repository) TransferAccount(ctx context.Context, from int64, to int64, 
 	r.Accounts[toID].Balance += amount
 
 	return nil
+}
+
+// GetTransactions returns a copy of the transaction log
+func (r *Repository) GetTransactions(ctx context.Context) []TransactionLog {
+	r.Transactions.rw.RLock()
+	defer r.Transactions.rw.RUnlock()
+	return append([]TransactionLog(nil), r.Transactions.transactions...)
+}
+
+type BatchTransaction []struct {
+	From   int64
+	To     int64
+	Amount int
+	When   time.Time
+}
+
+// AddTransaction adds a new transaction to the log
+func (r *Repository) AddTransaction(ctx context.Context, batch BatchTransaction) {
+	r.Transactions.rw.Lock()
+	defer r.Transactions.rw.Unlock()
+	for _, transaction := range batch {
+		r.Transactions.transactions = append(r.Transactions.transactions, TransactionLog{
+			From:   accountID(transaction.From),
+			To:     accountID(transaction.To),
+			Amount: int64(transaction.Amount),
+			When:   transaction.When,
+		})
+	}
 }
