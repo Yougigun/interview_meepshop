@@ -25,6 +25,11 @@ func Build(ctx context.Context, log *zap.Logger, repo *repository.Repository) *h
 	r.POST("/accounts/withdraw", h.WithdrawAccount)
 
 	r.POST("/accounts/transfer", h.TransferAccount)
+	{
+		// internal api for admin. todo: add auth middleware
+		r.GET("/accounts/:id", h.GetAccount)
+		r.GET("/transactions", h.GetTransactionLog)
+	}
 
 	srv := &http.Server{
 		Addr:    ":8080",

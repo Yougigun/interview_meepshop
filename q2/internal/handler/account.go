@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	"github.com/Yougigun/meepshop_q2/internal/repository"
@@ -52,7 +53,16 @@ func NewAccountHandler(ctx context.Context, logger *zap.Logger, repo *repository
 				}
 
 			case <-time.After(5 * time.Second):
+				if len(batchLogs) == 0 {
+					continue
+				}
 				repo.AddTransaction(ctx, repository.BatchTransaction(batchLogs))
+				batchLogs = make([]struct {
+					From   int64
+					To     int64
+					Amount int
+					When   time.Time
+				}, 0, 300)
 			}
 		}
 	}()
@@ -70,7 +80,7 @@ func (h *AccountHandler) CreateAccount(gCtx *gin.Context) {
 		gCtx.JSON(500, err.Error())
 	} else {
 		h.logger.Info("create account", zap.Any("account", account))
-		gCtx.JSON(200, account)
+		gCtx.JSON(200, struct{ AccountID int64 }{AccountID: int64(account)})
 	}
 }
 
@@ -138,18 +148,19 @@ func (h *AccountHandler) TransferAccount(ctx *gin.Context) {
 	// transfer account
 	if err := h.repository.TransferAccount(ctx, reqBody.FromAccountID, reqBody.ToAccountID, reqBody.Amount); err != nil {
 		ctx.JSON(500, err.Error())
+		return
 	} else {
 		ctx.JSON(200, "success")
+		// log transaction
+		tl := &TransactionLog{
+			From:   reqBody.FromAccountID,
+			To:     reqBody.ToAccountID,
+			Amount: reqBody.Amount,
+			When:   time.Now(),
+		}
+		h.transactionLogQueue <- tl
+		h.logger.Info("transaction log", zap.Any("log", tl))
 	}
-	// log transaction
-	tl := &TransactionLog{
-		From:   reqBody.FromAccountID,
-		To:     reqBody.ToAccountID,
-		Amount: reqBody.Amount,
-		When:   time.Now(),
-	}
-	h.transactionLogQueue <- tl
-	h.logger.Info("transaction log", zap.Any("log", tl))
 }
 
 type GetAccountRequest struct {
@@ -158,16 +169,21 @@ type GetAccountRequest struct {
 }
 
 func (h *AccountHandler) GetAccount(ctx *gin.Context) {
-	reqBody := &GetAccountRequest{}
-	if err := ctx.ShouldBindJSON(reqBody); err != nil {
+	// id from url
+	id := ctx.Param("id")
+
+	// convert id to int64
+	accountID, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
 		ctx.JSON(400, err.Error())
 		return
 	}
+
 	// get account
-	if account, err := h.repository.GetAccount(ctx, reqBody.ID); err != nil {
+	if account, err := h.repository.GetAccount(ctx, accountID); err != nil {
 		ctx.JSON(500, err.Error())
 	} else {
-		h.logger.Info("get account", zap.Any("account_id", reqBody.ID))
+		h.logger.Info("get account", zap.Any("account_id", accountID))
 		ctx.JSON(200, account)
 	}
 }
